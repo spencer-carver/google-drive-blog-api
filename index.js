@@ -83,7 +83,7 @@ exports.handler = async (event) => {
         const files = await listFiles(drive);
 
         if (!post) {
-            response.body = JSON.stringify(files.map(file => file.name));
+            response.body = JSON.stringify(files.map(({ name }) => name.split(".")[0]));
 
             return response;
         }
