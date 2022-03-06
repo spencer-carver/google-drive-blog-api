@@ -1,0 +1,16 @@
+{
+  "name": "google-drive-blog",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "export": "zip -r google-drive-blog.zip . -x \"./.git/*\"",
+    "list": "node -e \"require('./index').handler({type: 'list'}).then(console.log);\"",
+    "latest": "node -e \"require('./index').handler({type: 'latest'}).then(console.log);\""
+  },
+  "author": "Spencer Carver",
+  "license": "ISC",
+  "dependencies": {
+    "googleapis": "^95.0.0"
+  }
+}
