@@ -5,7 +5,7 @@
     "main": "index.js",
     "scripts": {
         "export": "zip -r google-drive-blog.zip . -x \"./.git/*\"",
-        "list": "node -e \"require('./index').handler({headers: { origin: 'https://spencer.carvers.info' }, requestContext: {}, pathParameters: {} }).then(console.log);\"",
+        "list": "node -e \"require('./index').handler({headers: { origin: 'https://spencer.carvers.info' }, requestContext: {} }).then(console.log);\"",
         "latest": "node -e \"require('./index').handler({headers: { origin: 'https://spencer.carvers.info' }, requestContext: {}, pathParameters: { post: 'latest' } }).then(console.log);\"",
         "get": "node -e \"require('./index').handler({headers: { origin: 'https://spencer.carvers.info' }, requestContext: {}, pathParameters: { post: '2022-03-06' } }).then(console.log);\""
     },

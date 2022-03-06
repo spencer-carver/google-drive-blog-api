@@ -63,7 +63,7 @@ exports.handler = async (event) => {
         };
     }
 
-    const { post } = pathParameters;
+    const { post } = pathParameters || {};
 
     const response = {
         statusCode: 200,
