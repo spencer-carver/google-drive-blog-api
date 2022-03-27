@@ -103,6 +103,10 @@ exports.handler = async (event) => {
     } catch (error) {
         return {
             statusCode: 500,
+            headers: {
+                "Access-Control-Allow-Origin": origin,
+                "Access-Control-Allow-Credentials": "true"
+            },
             body: JSON.stringify(error),
         };
     }
