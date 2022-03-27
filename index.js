@@ -1,4 +1,5 @@
 const { google } = require("googleapis");
+const { file } = require("googleapis/build/src/apis/file");
 const credentials = require("./credentials.json");
 const {
     isAllowed,
@@ -19,8 +20,8 @@ const SCOPES = [
 async function listFiles(drive) {
     return new Promise((resolve, reject) => {
         drive.files.list({
-            pageSize: 10,
-            fields: "nextPageToken, files(mimeType, id, name)",
+            pageSize: 20,
+            fields: "nextPageToken, files(mimeType, id, name, description, createdTime, modifiedTime)",
         }, (err, res) => {
             if (err) return reject("The API returned an error: " + err);
             const files = res.data.files;
@@ -83,21 +84,40 @@ exports.handler = async (event) => {
         const files = await listFiles(drive);
 
         if (!post) {
-            response.body = JSON.stringify(files.map(({ name }) => name.split(".")[0]));
+            response.body = JSON.stringify(files.map((file) => ({
+                name: file.name.split(".")[0],
+                description: file.description,
+                createdTime: new Date(file.createdTime).getTime(),
+                modifiedTime: new Date(file.modifiedTime).getTime()
+            })));
 
             return response;
         }
 
         // assumes file lists are sorted in the same order they are displayed in the drive folder, most recently modified first
         if (post === "latest") {
-            response.body = JSON.stringify(await getFile(drive, files[0].id));
+            const file = files[0];
+
+            response.body = JSON.stringify({
+                name: file.name,
+                description: file.description,
+                content: await getFile(drive, file.id),
+                createdTime: new Date(file.createdTime).getTime(),
+                modifiedTime: new Date(file.modifiedTime).getTime()
+            });
 
             return response;
         }
 
-        const found = files.find(({ name }) => name.indexOf(post) === 0);
+        const found = files.find(({ name }) => name.split(".")[0] === post);
 
-        response.body = JSON.stringify(await getFile(drive, found.id));
+        response.body = JSON.stringify({
+            name: found.name,
+            description: found.description,
+            content: await getFile(drive, found.id),
+            createdTime: new Date(found.createdTime).getTime(),
+            modifiedTime: new Date(found.modifiedTime).getTime()
+        });
 
         return response;
     } catch (error) {
