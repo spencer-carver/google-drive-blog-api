@@ -96,14 +96,28 @@ exports.handler = async (event) => {
 
         // assumes file lists are sorted in the same order they are displayed in the drive folder, most recently modified first
         if (post === "latest") {
-            response.body = JSON.stringify(await getFile(drive, files[0].id));
+            const file = files[0];
+
+            response.body = JSON.stringify({
+                name: file.name,
+                description: file.description,
+                content: await getFile(drive, file.id),
+                createdTime: new Date(file.createdTime).getTime(),
+                modifiedTime: new Date(file.modifiedTime).getTime()
+            });
 
             return response;
         }
 
-        const found = files.find(({ name }) => name.indexOf(post) === 0);
+        const found = files.find(({ name }) => name.split(".")[0] === post);
 
-        response.body = JSON.stringify(await getFile(drive, found.id));
+        response.body = JSON.stringify({
+            name: found.name,
+            description: found.description,
+            content: await getFile(drive, found.id),
+            createdTime: new Date(found.createdTime).getTime(),
+            modifiedTime: new Date(found.modifiedTime).getTime()
+        });
 
         return response;
     } catch (error) {
