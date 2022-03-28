@@ -99,7 +99,7 @@ exports.handler = async (event) => {
             const file = files[0];
 
             response.body = JSON.stringify({
-                name: file.name,
+                name: file.name.split(".")[0],
                 description: file.description,
                 content: await getFile(drive, file.id),
                 createdTime: new Date(file.createdTime).getTime(),
@@ -112,7 +112,7 @@ exports.handler = async (event) => {
         const found = files.find(({ name }) => name.split(".")[0] === post);
 
         response.body = JSON.stringify({
-            name: found.name,
+            name: post,
             description: found.description,
             content: await getFile(drive, found.id),
             createdTime: new Date(found.createdTime).getTime(),
