@@ -3,7 +3,8 @@ const { file } = require("googleapis/build/src/apis/file");
 const credentials = require("./credentials.json");
 const {
     isAllowed,
-    STAGING_API_DOMAIN
+    STAGING_API_DOMAIN,
+    BLOG_FOLDER
 } = require("./private-helpers");
 
 // If modifying these scopes, delete token.json.
@@ -20,8 +21,8 @@ const SCOPES = [
 async function listFiles(drive) {
     return new Promise((resolve, reject) => {
         drive.files.list({
-            pageSize: 20,
-            fields: "nextPageToken, files(mimeType, id, name, description, createdTime, modifiedTime)",
+            pageSize: 25,
+            fields: "nextPageToken, files(mimeType, id, name, description, createdTime, modifiedTime, parents)",
         }, (err, res) => {
             if (err) return reject("The API returned an error: " + err);
             const files = res.data.files;
@@ -84,7 +85,7 @@ exports.handler = async (event) => {
         const files = await listFiles(drive);
 
         if (!post) {
-            response.body = JSON.stringify(files.map((file) => ({
+            response.body = JSON.stringify(files.filter(({ parents }) => parents[0] === BLOG_FOLDER).map((file) => ({
                 name: file.name.split(".")[0],
                 description: file.description,
                 createdTime: new Date(file.createdTime).getTime(),
@@ -96,7 +97,7 @@ exports.handler = async (event) => {
 
         // assumes file lists are sorted in the same order they are displayed in the drive folder, most recently modified first
         if (post === "latest") {
-            const file = files[0];
+            const file = files.filter(({ parents }) => parents[0] === BLOG_FOLDER)[0];
 
             response.body = JSON.stringify({
                 name: file.name.split(".")[0],
