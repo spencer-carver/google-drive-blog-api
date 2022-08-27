@@ -18,16 +18,16 @@ const SCOPES = [
 /**
  * Lists the names and IDs of up to 10 files.
  */
-async function listFiles(drive) {
+async function listFiles(drive, searchOptions = { pageSize: 10 }) {
     return new Promise((resolve, reject) => {
         drive.files.list({
-            pageSize: 25,
+            ...searchOptions,
             fields: "nextPageToken, files(mimeType, id, name, description, createdTime, modifiedTime, parents)",
         }, (err, res) => {
             if (err) return reject("The API returned an error: " + err);
             const files = res.data.files;
             if (files.length) {
-                return resolve(files.filter((file) => file.mimeType === "text/markdown"));
+                return resolve(files);
             } else {
                 return resolve([]);
             }
@@ -82,10 +82,11 @@ exports.handler = async (event) => {
             scopes: SCOPES
         });
         const drive = google.drive({ version: 'v3', auth: client });
-        const files = await listFiles(drive);
 
         if (!post) {
-            response.body = JSON.stringify(files.filter(({ parents }) => parents[0] === BLOG_FOLDER).map((file) => ({
+            const files = await listFiles(drive, { q: `mimeType='text/markdown' and '${ BLOG_FOLDER }' in parents`, pageSize: 25 });
+
+            response.body = JSON.stringify(files.map((file) => ({
                 name: file.name.split(".")[0],
                 description: file.description,
                 createdTime: new Date(file.createdTime).getTime(),
@@ -97,7 +98,9 @@ exports.handler = async (event) => {
 
         // assumes file lists are sorted in the same order they are displayed in the drive folder, most recently modified first
         if (post === "latest") {
-            const file = files.filter(({ parents }) => parents[0] === BLOG_FOLDER)[0];
+            const files = await listFiles(drive, { q: `mimeType='text/markdown' and '${ BLOG_FOLDER }' in parents`, pageSize: 1 });
+
+            const file = files[0];
 
             response.body = JSON.stringify({
                 name: file.name.split(".")[0],
@@ -110,7 +113,9 @@ exports.handler = async (event) => {
             return response;
         }
 
-        const found = files.find(({ name }) => name.split(".")[0] === post);
+        const files = await listFiles(drive, { q: `mimeType='text/markdown' and name contains '${ post }'`, pageSize: 1 });
+
+        const found = files[0];
 
         response.body = JSON.stringify({
             name: post,
