@@ -1,6 +1,6 @@
 {
-    "name": "google-drive-blog",
-    "version": "1.2.0",
+    "name": "google-drive-blog-api",
+    "version": "1.2.1",
     "description": "",
     "main": "index.js",
     "scripts": {
