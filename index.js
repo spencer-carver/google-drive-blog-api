@@ -71,7 +71,8 @@ exports.handler = async (event) => {
         statusCode: 200,
         headers: {
             "Access-Control-Allow-Origin": origin,
-            "Access-Control-Allow-Credentials": "true"
+            "Access-Control-Allow-Credentials": "true",
+            "Cache-Control": "max-age=3600, stale-while-revalidate=86400"
         },
         multiValueHeaders: {}
     };
@@ -128,7 +129,7 @@ exports.handler = async (event) => {
         return response;
     } catch (error) {
         return {
-            statusCode: 500,
+            statusCode: 404,
             headers: {
                 "Access-Control-Allow-Origin": origin,
                 "Access-Control-Allow-Credentials": "true"
