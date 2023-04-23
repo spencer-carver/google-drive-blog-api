@@ -130,7 +130,7 @@ exports.handler = async (event) => {
             content: await getFile(drive, found.id),
             createdTime: new Date(found.createdTime).getTime(),
             modifiedTime: new Date(found.modifiedTime).getTime(),
-            author: file.owners[0].displayName
+            author: found.owners[0].displayName
         });
 
         return response;
