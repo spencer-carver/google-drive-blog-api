@@ -70,6 +70,7 @@ exports.handler = async (event) => {
     const { post } = pathParameters || {};
 
     const searchFolder = path.includes("recipes") ? RECIPE_FOLDER : BLOG_FOLDER;
+    const pageSize = path.includes("recipes") ? 100 : 20;
 
     const response = {
         statusCode: 200,
@@ -89,7 +90,7 @@ exports.handler = async (event) => {
         const drive = google.drive({ version: 'v3', auth: client });
 
         if (!post) {
-            const files = await listFiles(drive, { q: `mimeType='text/markdown' and '${ searchFolder }' in parents`, pageSize: 50 });
+            const files = await listFiles(drive, { q: `mimeType='text/markdown' and '${ searchFolder }' in parents`, pageSize });
 
             response.body = JSON.stringify(files.map((file) => ({
                 name: file.name.split(".")[0],
