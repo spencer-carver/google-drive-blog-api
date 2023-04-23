@@ -1,10 +1,10 @@
 const { google } = require("googleapis");
-const { file } = require("googleapis/build/src/apis/file");
 const credentials = require("./credentials.json");
 const {
     isAllowed,
     STAGING_API_DOMAIN,
-    BLOG_FOLDER
+    BLOG_FOLDER,
+    RECIPE_FOLDER
 } = require("./private-helpers");
 
 // If modifying these scopes, delete token.json.
@@ -52,6 +52,7 @@ exports.handler = async (event) => {
     console.log(event);
     const {
         headers,
+        path,
         pathParameters,
         requestContext
     } = event;
@@ -66,6 +67,8 @@ exports.handler = async (event) => {
     }
 
     const { post } = pathParameters || {};
+
+    const searchFolder = path.includes("recipes") ? RECIPE_FOLDER : BLOG_FOLDER;
 
     const response = {
         statusCode: 200,
@@ -85,7 +88,7 @@ exports.handler = async (event) => {
         const drive = google.drive({ version: 'v3', auth: client });
 
         if (!post) {
-            const files = await listFiles(drive, { q: `mimeType='text/markdown' and '${ BLOG_FOLDER }' in parents`, pageSize: 25 });
+            const files = await listFiles(drive, { q: `mimeType='text/markdown' and '${ searchFolder }' in parents`, pageSize: 50 });
 
             response.body = JSON.stringify(files.map((file) => ({
                 name: file.name.split(".")[0],
@@ -99,7 +102,7 @@ exports.handler = async (event) => {
 
         // assumes file lists are sorted in the same order they are displayed in the drive folder, most recently modified first
         if (post === "latest") {
-            const files = await listFiles(drive, { q: `mimeType='text/markdown' and '${ BLOG_FOLDER }' in parents`, pageSize: 1 });
+            const files = await listFiles(drive, { q: `mimeType='text/markdown' and '${ searchFolder }' in parents`, pageSize: 1 });
 
             const file = files[0];
 
