@@ -4,7 +4,8 @@ const {
     isAllowed,
     STAGING_API_DOMAIN,
     BLOG_FOLDER,
-    RECIPE_FOLDER
+    RECIPE_FOLDER,
+    DO_NOT_PUBLISH
 } = require("./private-helpers");
 
 // If modifying these scopes, delete token.json.
@@ -22,7 +23,7 @@ async function listFiles(drive, searchOptions = { pageSize: 10 }) {
     return new Promise((resolve, reject) => {
         drive.files.list({
             ...searchOptions,
-            fields: "nextPageToken, files(mimeType, id, name, description, createdTime, modifiedTime, parents)",
+            fields: "nextPageToken, files(mimeType, id, name, owners, description, createdTime, modifiedTime, parents)",
         }, (err, res) => {
             if (err) return reject("The API returned an error: " + err);
             const files = res.data.files;
@@ -94,8 +95,9 @@ exports.handler = async (event) => {
                 name: file.name.split(".")[0],
                 description: file.description,
                 createdTime: new Date(file.createdTime).getTime(),
-                modifiedTime: new Date(file.modifiedTime).getTime()
-            })));
+                modifiedTime: new Date(file.modifiedTime).getTime(),
+                author: file.owners[0].displayName
+            })).filter(({ name }) => !DO_NOT_PUBLISH.includes(name)));
 
             return response;
         }
@@ -111,7 +113,8 @@ exports.handler = async (event) => {
                 description: file.description,
                 content: await getFile(drive, file.id),
                 createdTime: new Date(file.createdTime).getTime(),
-                modifiedTime: new Date(file.modifiedTime).getTime()
+                modifiedTime: new Date(file.modifiedTime).getTime(),
+                author: file.owners[0].displayName
             });
 
             return response;
@@ -126,7 +129,8 @@ exports.handler = async (event) => {
             description: found.description,
             content: await getFile(drive, found.id),
             createdTime: new Date(found.createdTime).getTime(),
-            modifiedTime: new Date(found.modifiedTime).getTime()
+            modifiedTime: new Date(found.modifiedTime).getTime(),
+            author: file.owners[0].displayName
         });
 
         return response;
