@@ -121,7 +121,7 @@ exports.handler = async (event) => {
             return response;
         }
 
-        const files = await listFiles(drive, { q: `mimeType='text/markdown' and name contains '${ post }'`, pageSize: 1 });
+        const files = await listFiles(drive, { q: `mimeType='text/markdown' and name = '${ post }.md'`, pageSize: 1 });
 
         const found = files[0];
 
