@@ -1,6 +1,6 @@
 {
     "name": "google-drive-blog-api",
-    "version": "1.2.2",
+    "version": "1.2.3",
     "description": "",
     "main": "index.js",
     "scripts": {
@@ -12,6 +12,6 @@
     "author": "Spencer Carver",
     "license": "ISC",
     "dependencies": {
-        "googleapis": "^95.0.0"
+        "googleapis": "^140.0.1"
     }
 }
