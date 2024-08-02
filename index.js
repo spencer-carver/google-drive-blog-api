@@ -5,7 +5,8 @@ const {
     STAGING_API_DOMAIN,
     BLOG_FOLDER,
     RECIPE_FOLDER,
-    DO_NOT_PUBLISH
+    DO_NOT_PUBLISH,
+    AUTHOR_NAMES
 } = require("./private-helpers");
 
 // If modifying these scopes, delete token.json.
@@ -97,7 +98,7 @@ exports.handler = async (event) => {
                 description: file.description,
                 createdTime: new Date(file.createdTime).getTime(),
                 modifiedTime: new Date(file.modifiedTime).getTime(),
-                author: file.owners[0].displayName
+                author: AUTHOR_NAMES[file.owners[0].displayName] || file.owners[0].displayName
             })).filter(({ name }) => !DO_NOT_PUBLISH.includes(name)));
 
             return response;
@@ -115,7 +116,7 @@ exports.handler = async (event) => {
                 content: await getFile(drive, file.id),
                 createdTime: new Date(file.createdTime).getTime(),
                 modifiedTime: new Date(file.modifiedTime).getTime(),
-                author: file.owners[0].displayName
+                author: AUTHOR_NAMES[file.owners[0].displayName] || file.owners[0].displayName
             });
 
             return response;
@@ -131,7 +132,7 @@ exports.handler = async (event) => {
             content: await getFile(drive, found.id),
             createdTime: new Date(found.createdTime).getTime(),
             modifiedTime: new Date(found.modifiedTime).getTime(),
-            author: found.owners[0].displayName
+            author: AUTHOR_NAMES[found.owners[0].displayName] || found.owners[0].displayName
         });
 
         return response;
