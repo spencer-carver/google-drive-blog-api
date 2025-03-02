@@ -95,7 +95,7 @@ exports.handler = async (event) => {
 
             response.body = JSON.stringify(files.map((file) => ({
                 name: file.name.split(".")[0],
-                description: file.description,
+                description: file.description || "",
                 createdTime: new Date(file.createdTime).getTime(),
                 modifiedTime: new Date(file.modifiedTime).getTime(),
                 author: AUTHOR_NAMES[file.owners[0].displayName] || file.owners[0].displayName
@@ -112,7 +112,7 @@ exports.handler = async (event) => {
 
             response.body = JSON.stringify({
                 name: file.name.split(".")[0],
-                description: file.description,
+                description: file.description || "",
                 content: await getFile(drive, file.id),
                 createdTime: new Date(file.createdTime).getTime(),
                 modifiedTime: new Date(file.modifiedTime).getTime(),
@@ -128,7 +128,7 @@ exports.handler = async (event) => {
 
         response.body = JSON.stringify({
             name: post,
-            description: found.description,
+            description: found.description || "",
             content: await getFile(drive, found.id),
             createdTime: new Date(found.createdTime).getTime(),
             modifiedTime: new Date(found.modifiedTime).getTime(),
