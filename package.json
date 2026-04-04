@@ -7,7 +7,8 @@
         "export": "zip -r google-drive-blog.zip . -x \"./.git/*\"",
         "list": "node -e \"require('./index').handler({path: '/api/blog', headers: { origin: 'https://spencer.carvers.info' }, requestContext: {} }).then(console.log);\"",
         "latest": "node -e \"require('./index').handler({path: '/api/recipes', headers: { origin: 'https://spencer.carvers.info' }, requestContext: {}, pathParameters: { post: 'latest' } }).then(console.log);\"",
-        "get": "node -e \"require('./index').handler({path: '/api/blog', headers: { origin: 'https://spencer.carvers.info' }, requestContext: {}, pathParameters: { post: 'markdown-sample' } }).then(console.log);\""
+        "get": "node -e \"require('./index').handler({path: '/api/blog', headers: { origin: 'https://spencer.carvers.info' }, requestContext: {}, pathParameters: { post: 'markdown-sample' } }).then(console.log);\"",
+        "deploy": "aws lambda update-function-code --function-name google-drive --zip-file fileb://google-drive-blog.zip"
     },
     "author": "Spencer Carver",
     "license": "ISC",
