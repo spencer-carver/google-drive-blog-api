@@ -4,15 +4,21 @@
     "description": "",
     "main": "index.js",
     "scripts": {
-        "export": "zip -r google-drive-blog.zip . -x \"./.git/*\"",
+        "build": "esbuild index.js --bundle --minify --platform=node --target=node20 --outfile=dist/index.js",
+        "export": "npm run build && cd dist && zip -r ../google-drive-blog.zip index.js",
         "list": "node -e \"require('./index').handler({path: '/api/blog', headers: { origin: 'https://spencer.carvers.info' }, requestContext: {} }).then(console.log);\"",
         "latest": "node -e \"require('./index').handler({path: '/api/recipes', headers: { origin: 'https://spencer.carvers.info' }, requestContext: {}, pathParameters: { post: 'latest' } }).then(console.log);\"",
         "get": "node -e \"require('./index').handler({path: '/api/blog', headers: { origin: 'https://spencer.carvers.info' }, requestContext: {}, pathParameters: { post: 'markdown-sample' } }).then(console.log);\"",
+        "get:injection": "node -e \"require('./index').handler({path: '/api/blog', headers: { origin: 'https://spencer.carvers.info' }, requestContext: {}, pathParameters: { post: \\\"x' or name contains '\\\" } }).then(console.log);\"",
         "deploy": "aws lambda update-function-code --function-name google-drive --zip-file fileb://google-drive-blog.zip"
     },
     "author": "Spencer Carver",
     "license": "ISC",
     "dependencies": {
-        "googleapis": "^140.0.1"
+        "@googleapis/drive": "^27.0.0",
+        "google-auth-library": "^11.3.3"
+    },
+    "devDependencies": {
+        "esbuild": "^0.28.2"
     }
 }
