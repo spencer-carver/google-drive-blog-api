@@ -1,0 +1,21 @@
+{
+  "permissions": {
+      "deny": [
+          "Read(./credentials.json)",
+          "Read(./private-helpers.js)",
+          "Read(./dist/**)",
+          "Read(./*.zip)",
+          "Edit(./credentials.json)",
+          "Edit(./private-helpers.js)"
+      ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "credentials": {
+      "files": [
+        { "path": "./credentials.json", "mode": "deny" },
+        { "path": "./private-helpers.js", "mode": "deny" }
+      ]
+    }
+  }
+}
