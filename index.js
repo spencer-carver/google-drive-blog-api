@@ -1,4 +1,5 @@
-const { google } = require("googleapis");
+const { drive: createDrive } = require("@googleapis/drive");
+const { GoogleAuth } = require("google-auth-library");
 const credentials = require("./credentials.json");
 const {
     isAllowed,
@@ -9,54 +10,99 @@ const {
     AUTHOR_NAMES
 } = require("./private-helpers");
 
-// If modifying these scopes, delete token.json.
 const SCOPES = [
     "https://www.googleapis.com/auth/drive.readonly"
 ];
-// The file token.json stores the user's access and refresh tokens, and is
-// created automatically when the authorization flow completes for the first
-// time.
 
-/**
- * Lists the names and IDs of up to 10 files.
- */
-async function listFiles(drive, searchOptions = { pageSize: 10 }) {
-    return new Promise((resolve, reject) => {
-        drive.files.list({
-            ...searchOptions,
-            fields: "nextPageToken, files(mimeType, id, name, owners, description, createdTime, modifiedTime, parents)",
-        }, (err, res) => {
-            if (err) return reject("The API returned an error: " + err);
-            const files = res.data.files;
-            if (files.length) {
-                return resolve(files);
-            } else {
-                return resolve([]);
-            }
-        });
-    });
+// Served by CloudFront: fresh for 15 minutes, then served stale instantly (and refreshed in the background)
+// for up to 30 days, including when this function errors.
+const CACHE_CONTROL = "max-age=900, stale-while-revalidate=2592000, stale-if-error=2592000";
+
+// Only plain file-name style identifiers are allowed in a post name, since it is used in a Drive search query.
+const VALID_POST_NAME = /^[A-Za-z0-9_-]+$/;
+
+// How long (per warm Lambda container) file metadata lookups are reused.
+const METADATA_CACHE_TTL_MS = 60 * 1000;
+
+// Created once per container, so warm invocations reuse the client and its cached access token.
+const auth = new GoogleAuth({ credentials, scopes: SCOPES });
+const drive = createDrive({ version: "v3", auth });
+
+const metadataCache = new Map();
+
+class NotFoundError extends Error {}
+
+async function cached(key, loader) {
+    const hit = metadataCache.get(key);
+
+    if (hit && Date.now() - hit.time < METADATA_CACHE_TTL_MS) {
+        return hit.value;
+    }
+
+    const value = await loader();
+
+    metadataCache.set(key, { time: Date.now(), value });
+
+    return value;
 }
 
-async function getFile(drive, fileId) {
-    return new Promise((resolve, reject) => {
-        drive.files.get({
-            fileId,
-            mimeType: "text/plain",
-            alt: "media"
-        }, (err, res) => {
-            if (err) return reject("The API returned an error: " + err);
-            return resolve(res.data);
+async function listFiles(searchOptions = { pageSize: 10 }) {
+    const res = await drive.files.list({
+        ...searchOptions,
+        fields: "nextPageToken, files(mimeType, id, name, owners, description, createdTime, modifiedTime, parents)",
+    });
+
+    return res.data.files || [];
+}
+
+async function getFile(fileId) {
+    const res = await drive.files.get({
+        fileId,
+        mimeType: "text/plain",
+        alt: "media"
+    });
+
+    return res.data;
+}
+
+function isPublished(file) {
+    return !DO_NOT_PUBLISH.includes(file.name.split(".")[0]);
+}
+
+function toMetadata(file, name = file.name.split(".")[0]) {
+    return {
+        name,
+        description: file.description || "",
+        createdTime: new Date(file.createdTime).getTime(),
+        modifiedTime: new Date(file.modifiedTime).getTime(),
+        author: AUTHOR_NAMES[file.owners[0].displayName] || file.owners[0].displayName
+    };
+}
+
+function listFolder(searchFolder, pageSize) {
+    return cached(`list:${ searchFolder }:${ pageSize }`, () => listFiles({
+        q: `mimeType='text/markdown' and '${ searchFolder }' in parents`,
+        pageSize
+    }));
+}
+
+function findPost(searchFolder, post) {
+    return cached(`post:${ searchFolder }:${ post }`, async () => {
+        const files = await listFiles({
+            q: `mimeType='text/markdown' and '${ searchFolder }' in parents and name = '${ post }.md'`,
+            pageSize: 1
         });
+
+        return files[0];
     });
 }
 
 exports.handler = async (event) => {
-    console.log(event);
     const {
-        headers,
-        path,
+        headers = {},
+        path = "",
         pathParameters,
-        requestContext
+        requestContext = {}
     } = event;
 
     const origin = headers.origin || headers.Origin;
@@ -68,82 +114,77 @@ exports.handler = async (event) => {
         };
     }
 
-    const { post } = pathParameters || {};
-
-    const searchFolder = path.includes("recipes") ? RECIPE_FOLDER : BLOG_FOLDER;
-    const pageSize = path.includes("recipes") ? 100 : 20;
+    const corsHeaders = {
+        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Credentials": "true"
+    };
 
     const response = {
         statusCode: 200,
         headers: {
-            "Access-Control-Allow-Origin": origin,
-            "Access-Control-Allow-Credentials": "true",
-            "Cache-Control": "max-age=3600, stale-while-revalidate=86400"
+            ...corsHeaders,
+            "Cache-Control": CACHE_CONTROL
         },
         multiValueHeaders: {}
     };
 
     try {
-        const client = await google.auth.getClient({
-            credentials,
-            scopes: SCOPES
-        });
-        const drive = google.drive({ version: 'v3', auth: client });
+        const { post } = pathParameters || {};
+
+        const isRecipes = path.includes("recipes");
+        const searchFolder = isRecipes ? RECIPE_FOLDER : BLOG_FOLDER;
+        const pageSize = isRecipes ? 100 : 20;
 
         if (!post) {
-            const files = await listFiles(drive, { q: `mimeType='text/markdown' and '${ searchFolder }' in parents`, pageSize });
+            const files = await listFolder(searchFolder, pageSize);
 
-            response.body = JSON.stringify(files.map((file) => ({
-                name: file.name.split(".")[0],
-                description: file.description || "",
-                createdTime: new Date(file.createdTime).getTime(),
-                modifiedTime: new Date(file.modifiedTime).getTime(),
-                author: AUTHOR_NAMES[file.owners[0].displayName] || file.owners[0].displayName
-            })).filter(({ name }) => !DO_NOT_PUBLISH.includes(name)));
+            response.body = JSON.stringify(files.filter(isPublished).map((file) => toMetadata(file)));
 
             return response;
         }
+
+        let file;
+        let name;
 
         // assumes file lists are sorted in the same order they are displayed in the drive folder, most recently modified first
         if (post === "latest") {
-            const files = await listFiles(drive, { q: `mimeType='text/markdown' and '${ searchFolder }' in parents`, pageSize: 1 });
+            file = (await listFolder(searchFolder, pageSize)).find(isPublished);
+            name = file && file.name.split(".")[0];
+        } else {
+            if (!VALID_POST_NAME.test(post) || DO_NOT_PUBLISH.includes(post)) {
+                throw new NotFoundError();
+            }
 
-            const file = files[0];
-
-            response.body = JSON.stringify({
-                name: file.name.split(".")[0],
-                description: file.description || "",
-                content: await getFile(drive, file.id),
-                createdTime: new Date(file.createdTime).getTime(),
-                modifiedTime: new Date(file.modifiedTime).getTime(),
-                author: AUTHOR_NAMES[file.owners[0].displayName] || file.owners[0].displayName
-            });
-
-            return response;
+            file = await findPost(searchFolder, post);
+            name = post;
         }
 
-        const files = await listFiles(drive, { q: `mimeType='text/markdown' and name = '${ post }.md'`, pageSize: 1 });
-
-        const found = files[0];
+        if (!file) {
+            throw new NotFoundError();
+        }
 
         response.body = JSON.stringify({
-            name: post,
-            description: found.description || "",
-            content: await getFile(drive, found.id),
-            createdTime: new Date(found.createdTime).getTime(),
-            modifiedTime: new Date(found.modifiedTime).getTime(),
-            author: AUTHOR_NAMES[found.owners[0].displayName] || found.owners[0].displayName
+            ...toMetadata(file, name),
+            content: await getFile(file.id)
         });
 
         return response;
     } catch (error) {
+        if (error instanceof NotFoundError) {
+            return {
+                statusCode: 404,
+                headers: corsHeaders,
+                body: JSON.stringify({ error: "Not found" })
+            };
+        }
+
+        console.log(error);
+
+        // 5xx so CloudFront can serve a stale copy (stale-if-error) rather than caching a failure
         return {
-            statusCode: 404,
-            headers: {
-                "Access-Control-Allow-Origin": origin,
-                "Access-Control-Allow-Credentials": "true"
-            },
-            body: JSON.stringify(error),
+            statusCode: 500,
+            headers: corsHeaders,
+            body: JSON.stringify({ error: "Unexpected error." })
         };
     }
 };
